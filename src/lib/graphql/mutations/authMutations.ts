@@ -28,6 +28,22 @@ export const LOGOUT_MUTATION = gql(`
   }
 `);
 
+
+export const LOGIN_MUTATION = gql(`
+  mutation Login($data: LoginInput!) {
+    login(data: $data) {
+      status
+      user {
+        id
+        username
+        email
+        emailVerified
+      }
+    }
+  }
+`);
+
+
 // export const LOGIN_MUTATION = gql`
 //   mutation LoginUser($email: String!, $password: String!) {
 //     Login(data: { email: $email, password: $password }) {

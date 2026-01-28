@@ -4,7 +4,7 @@ import { AuthActionButton } from "@/components/auth/better-auth-action-button"
 import { RESEND_OTP_MUTATION, VERIFY_EMAIL_OTP_MUTATION } from "@/lib/graphql/mutations/authMutations"
 import { useMutation } from "@apollo/client/react"
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import {
   InputOTP,
@@ -26,6 +26,10 @@ export function EmailVerification({ email }: { email: string }) {
 
     const [verifyOtp, { loading: verifying }] = useMutation(VERIFY_EMAIL_OTP_MUTATION)
     const [resendOtp] = useMutation(RESEND_OTP_MUTATION)
+
+    useEffect(() => {
+        startEmailVerificationCountdown()
+    }, [])
 
     function startEmailVerificationCountdown(time = 30) {
         setTimeToNextResend(time)
@@ -52,7 +56,6 @@ export function EmailVerification({ email }: { email: string }) {
 
         try {
             const { data } = await verifyOtp({ variables: { code: otp } })
-
             console.log("sent otp");
 
             if (data?.verifyEmailOtp) {
@@ -100,29 +103,33 @@ export function EmailVerification({ email }: { email: string }) {
                 <LoadingSwap isLoading={verifying}>Verify Account</LoadingSwap>
             </Button>
 
-            <div className="pt-2 text-center">
-                <AuthActionButton
-                    variant="ghost"
-                    className="w-full text-xs text-muted-foreground hover:text-foreground"
-                    successMessage="Code resent successfully!"
-                    disabled={timeToNextResend > 0}
-                    action={async () => {
-                        try {
-                            startEmailVerificationCountdown()
-                            await resendOtp({ variables: { email } })
-                            return { error: null }
-                        } catch (error: any) {
-                            return { 
-                                error: { message: error.message || "Failed to resend" } 
-                            }
+            <AuthActionButton
+                variant="outline"
+                className="w-full"
+                successMessage="Code resent successfully!"
+                disabled={timeToNextResend > 0}
+                action={async () => {
+                    try {
+                        startEmailVerificationCountdown()
+                        const res = await resendOtp({ variables: { email } });
+                        const message = res.error?.message;
+
+                        if(message){
+                            return {error: {message}};
+                        }else{
+                            return {error: null};
                         }
-                    }}
-                >
-                    {timeToNextResend > 0
-                        ? `Resend code in ${timeToNextResend}s`
-                        : "Resend Code"}
-                </AuthActionButton>
-            </div>
+                    } catch (error: any) {
+                        return { 
+                            error: { message: error.message || "Failed to resend" } 
+                        }
+                    }
+                }}
+            >
+                {timeToNextResend > 0
+                    ? `Resend code in ${timeToNextResend}s`
+                    : "Resend Code"}
+            </AuthActionButton>
         </div>
     )
 

@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { HeaderAuth } from "@/components/header/header";
 
 export default function Home() {
   return (
@@ -8,14 +7,12 @@ export default function Home() {
       {/* Header Section */}
       <header className="flex h-16 items-center justify-between border-b px-6 lg:px-10">
         <div className="flex items-center gap-2 font-bold text-xl">
-          {/* You can replace this emoji with an <Image /> logo later */}
           ♟️ Chastle
         </div>
 
         <nav className="flex items-center gap-4">
-          <Link href="/auth/login">
-            <Button variant="ghost">Log In</Button>
-          </Link>
+          {/* 👇 Replaced static buttons with the smart component */}
+          <HeaderAuth />
         </nav>
       </header>
 

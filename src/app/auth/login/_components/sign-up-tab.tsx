@@ -33,28 +33,23 @@ export default function SignUpTab({
       password: "",
     }
   })
-  const [signup, { loading }] = useMutation(SIGNUP_MUTATION)
+  const [signup, { loading, error }] = useMutation(SIGNUP_MUTATION)
 
   async function handleSignUp(data: SignUpForm) {
-    try{
-      const response = await signup({
-        variables: {
-          username: data.name,
-          email: data.email,
-          password: data.password
-        }
-      })
-
-      if (response.data?.createUser) {
-        openEmailVerificationTab(data.email)
+    const response = await signup({
+      variables: {
+        username: data.name,
+        email: data.email,
+        password: data.password
       }
-    }catch(error: any){
-      const message = error.message.includes("Unique constraint") 
-        ? "Username or Email already exists."
-        : error.message || "Failed to sign up"
-  
-      toast.error(error.message || "Failed to sign up")
+    });
+
+    if(error){
+      const message = error.message || "Failed to sign up";
+      toast.error(message);
     }
+
+    openEmailVerificationTab(data.email);
   }
 
   return (

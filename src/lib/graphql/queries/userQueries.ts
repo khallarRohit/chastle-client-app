@@ -1,8 +1,8 @@
 import { gql } from "../../../generated/gql";
 
 export const ME_QUERY = gql(`
-  query getUser {
-    getUser {
+  query me {
+    User {
       id
       username
       email
