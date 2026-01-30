@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ApolloWrapper } from "../lib/graphql/ApolloWrapper";
+import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from "sonner";
 
 
@@ -26,6 +27,7 @@ export default function RootLayout({
       >
         <ApolloWrapper>
           {children}
+        <Analytics />
         </ApolloWrapper>
         <Toaster/>
       </body>
