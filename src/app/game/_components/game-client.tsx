@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ChessBoard } from "./chess-board";
 import { GameInfo } from "./game-info";
-import { PlayerTimer } from "./player-timer";
+import { PlayerTimer } from "./play-timer";
 import { MoveHistory } from "./move-history";
-import { GameActions } from "./game-actions";
+import { GameActions } from "./game-action";
 import { FirstMoveTimer } from "./first-move-timer";
+import { useGameSocket } from "./use-game-socket";
 import {
   Dialog,
   DialogContent,
@@ -45,9 +46,88 @@ export function GameClient({ gameId, playerColor, config }: GameClientProps) {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [gameResult, setGameResult] = useState("");
+  const [boardFen, setBoardFen] = useState<string | undefined>(undefined);
+
+  // Initialize WebSocket connection
+  const { isConnected, lastMessage, sendMessage } = useGameSocket({
+    url: process.env.WS_URL || "ws://localhost:8080",
+    gameId,
+    reconnect: true,
+  });
+
+//   export type MessageType =
+//     | 'AUTHENTICATE'
+//     | 'GAME_STATE'
+//     | 'MOVE'
+//     | 'MOVE_MADE'
+//     | 'PLAYER_JOINED'
+//     | 'PLAYER_LEFT'
+//     | 'CHAT_MESSAGE'
+//     | 'DRAW_OFFER'
+//     | 'DRAW_RESPONSE'
+//     | 'RESIGN'
+//     | 'GAME_OVER'
+//     | 'TIME_UPDATE'
+//     | 'ERROR'
+
+
+// export interface WebSocketMessage {
+//   type: MessageType
+//   payload: any
+//   timestamp?: number
+// }
+
+
+  // Handle incoming WebSocket messages
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    console.log("WebSocket message received:", lastMessage);
+
+    switch (lastMessage.type) {
+      case "board_state":
+        if (lastMessage.payload?.position) {
+          setBoardFen(lastMessage.payload.position);
+        }
+        break;
+
+      case "move":
+        if (lastMessage.payload?.move) {
+          const move = lastMessage.payload.move;
+          // Only process opponent's moves
+          if (
+            lastMessage.payload.playerColor &&
+            lastMessage.payload.playerColor !== playerColor
+          ) {
+            setMoves((prev) => {
+              const newMoves = [...prev];
+              if (move.color === "white") {
+                newMoves.push({
+                  number: newMoves.length + 1,
+                  white: move.san,
+                });
+              } else {
+                if (newMoves.length > 0) {
+                  newMoves[newMoves.length - 1].black = move.san;
+                }
+              }
+              return newMoves;
+            });
+            setIsWhiteTurn((prev) => !prev);
+          }
+        }
+        break;
+
+      case "game_over":
+        if (lastMessage.payload?.result) {
+          handleGameOver(lastMessage.payload.result);
+        }
+        break;
+    }
+  }, [lastMessage]);
 
   const handleMove = useCallback(
-    (move: { from: string; to: string; san: string }) => {
+    (move: { from: string; to: string; san: string; promotion?: string }) => {
       if (!gameStarted) {
         setGameStarted(true);
       }
@@ -69,10 +149,24 @@ export function GameClient({ gameId, playerColor, config }: GameClientProps) {
         return newMoves;
       });
 
+      // Send move to server via WebSocket
+      if (isConnected) {
+        sendMessage("move", {
+          gameId,
+          playerColor,
+          move: {
+            from: move.from,
+            to: move.to,
+            san: move.san,
+            promotion: move.promotion,
+          },
+        });
+      }
+
       setCurrentMoveIndex((prev) => prev + 1);
       setIsWhiteTurn((prev) => !prev);
     },
-    [isWhiteTurn, gameStarted]
+    [isWhiteTurn, gameStarted, isConnected, gameId, playerColor, sendMessage]
   );
 
   const handleGameOver = useCallback((result: string) => {
@@ -143,20 +237,26 @@ export function GameClient({ gameId, playerColor, config }: GameClientProps) {
               playerColor={playerColor}
               onMove={handleMove}
               onGameOver={handleGameOver}
+              position={boardFen}
             />
+            {!isConnected && (
+              <div className="mt-2 text-sm text-amber-600">
+                Connecting to server...
+              </div>
+            )}
           </div>
 
           {/* Right Sidebar - Timers & Controls */}
           <div className="flex flex-col gap-3">
             {/* Opponent Timer (top) */}
-            <PlayerTimer
+            {/* <PlayerTimer
               initialTime={config.initialTime}
               isActive={!gameOver && gameStarted && !isPlayerTurn}
               increment={config.increment}
               playerName="Anonymous"
               isOnline={true}
               onTimeOut={() => handleGameOver(`${playerColor === "white" ? "White" : "Black"} wins on time`)}
-            />
+            /> */}
 
             {/* Move History */}
             <MoveHistory
@@ -179,7 +279,7 @@ export function GameClient({ gameId, playerColor, config }: GameClientProps) {
             />
 
             {/* Player Timer (bottom) */}
-            <PlayerTimer
+            {/* <PlayerTimer
               initialTime={config.initialTime}
               isActive={!gameOver && gameStarted && isPlayerTurn}
               increment={config.increment}
@@ -187,7 +287,7 @@ export function GameClient({ gameId, playerColor, config }: GameClientProps) {
               isOnline={true}
               isCurrentPlayer={true}
               onTimeOut={() => handleGameOver(`${opponentColor === "white" ? "White" : "Black"} wins on time`)}
-            />
+            /> */}
 
             {/* First Move Timer */}
             {!gameStarted && playerColor === "white" && (

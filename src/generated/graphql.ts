@@ -18,6 +18,30 @@ export type Scalars = {
   DateTimeISO: { input: any; output: any; }
 };
 
+/** side for chastling */
+export enum Castle {
+  Kingside = 'KINGSIDE',
+  Queenside = 'QUEENSIDE'
+}
+
+/** The color choose by the chess player */
+export enum Color {
+  Black = 'BLACK',
+  Random = 'RANDOM',
+  White = 'WHITE'
+}
+
+/** reason for ending the game */
+export enum EndReason {
+  Abandoned = 'ABANDONED',
+  Checkmate = 'CHECKMATE',
+  DrawAgreed = 'DRAW_AGREED',
+  InsufficientMaterial = 'INSUFFICIENT_MATERIAL',
+  Resignation = 'RESIGNATION',
+  Stalemate = 'STALEMATE',
+  Timeout = 'TIMEOUT'
+}
+
 export type FriendRequestType = {
   __typename?: 'FriendRequestType';
   createdAt: Scalars['DateTimeISO']['output'];
@@ -25,6 +49,41 @@ export type FriendRequestType = {
   receiver: UserType;
   sender: UserType;
   status: Scalars['String']['output'];
+};
+
+export type GameInput = {
+  color: Color;
+  rated?: InputMaybe<Scalars['Boolean']['input']>;
+  timeControl: Scalars['String']['input'];
+  variant: GameVariant;
+};
+
+/** current status of the game */
+export enum GameStatus {
+  Aborted = 'ABORTED',
+  Completed = 'COMPLETED',
+  InProgress = 'IN_PROGRESS',
+  Pending = 'PENDING'
+}
+
+export type GameType = {
+  __typename?: 'GameType';
+  black?: Maybe<UserType>;
+  blackId?: Maybe<Scalars['String']['output']>;
+  createdAt?: Maybe<Scalars['String']['output']>;
+  endReason?: Maybe<EndReason>;
+  fen?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  moves?: Maybe<Array<Move>>;
+  rated?: Maybe<Scalars['Boolean']['output']>;
+  status?: Maybe<GameStatus>;
+  timeControl?: Maybe<Scalars['String']['output']>;
+  updatedAt?: Maybe<Scalars['DateTimeISO']['output']>;
+  variant?: Maybe<GameVariant>;
+  white?: Maybe<UserType>;
+  whiteId?: Maybe<Scalars['String']['output']>;
+  winner?: Maybe<UserType>;
+  winnerId?: Maybe<Scalars['String']['output']>;
 };
 
 /** The variant of chess being played */
@@ -46,9 +105,25 @@ export type LoginResponse = {
   user?: Maybe<UserType>;
 };
 
+export type Move = {
+  __typename?: 'Move';
+  capture: PieceTypes;
+  castle?: Maybe<Castle>;
+  enPassant?: Maybe<Scalars['Boolean']['output']>;
+  from: Scalars['String']['output'];
+  gameId: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  moveNo: Scalars['Int']['output'];
+  piece: PieceTypes;
+  promotion?: Maybe<PieceTypes>;
+  to: Scalars['String']['output'];
+};
+
 export type Mutation = {
   __typename?: 'Mutation';
+  createGame: CreateGameResponse;
   createUser: UserType;
+  joinGame: CreateGameResponse;
   login: LoginResponse;
   logout: Scalars['Boolean']['output'];
   resendVerificationOtp: Scalars['Boolean']['output'];
@@ -57,8 +132,18 @@ export type Mutation = {
 };
 
 
+export type MutationCreateGameArgs = {
+  data: GameInput;
+};
+
+
 export type MutationCreateUserArgs = {
   data: UserInput;
+};
+
+
+export type MutationJoinGameArgs = {
+  gameId: Scalars['String']['input'];
 };
 
 
@@ -81,6 +166,16 @@ export type MutationVerifyEmailOtpArgs = {
   code: Scalars['String']['input'];
 };
 
+/** Available chess pieces */
+export enum PieceTypes {
+  Bishop = 'BISHOP',
+  King = 'KING',
+  Knight = 'KNIGHT',
+  Pawn = 'PAWN',
+  Queen = 'QUEEN',
+  Rook = 'ROOK'
+}
+
 export type Query = {
   __typename?: 'Query';
   User: UserType;
@@ -91,7 +186,6 @@ export type Rating = {
   __typename?: 'Rating';
   rating: Scalars['Float']['output'];
   rd?: Maybe<Scalars['Float']['output']>;
-  user?: Maybe<UserType>;
   userId: Scalars['String']['output'];
   variant: GameVariant;
   volatility: Scalars['Float']['output'];
@@ -122,6 +216,12 @@ export type UserType = {
   ratings?: Maybe<Array<Rating>>;
   updatedAt: Scalars['DateTimeISO']['output'];
   username: Scalars['String']['output'];
+};
+
+export type CreateGameResponse = {
+  __typename?: 'createGameResponse';
+  game: GameType;
+  wsToken: Scalars['String']['output'];
 };
 
 export type CreateUserMutationVariables = Exact<{

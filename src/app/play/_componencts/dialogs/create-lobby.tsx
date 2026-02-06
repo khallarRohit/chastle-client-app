@@ -22,6 +22,7 @@ import { Crown, Users } from 'lucide-react'
 import { IncrementalCache } from 'next/dist/server/lib/incremental-cache'
 import { LoadingSwap } from '@/components/ui/loading-swap'
 import { createGame } from '../actions/createGame'
+import { Color } from '@/generated/graphql'
 
 const TIME_PRESETS = [
   { label: '1+0', minutes: 1, increment: 0 },
@@ -46,7 +47,6 @@ interface CreateLobbyDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-type Side = 'black' | 'random' | 'white'
 
 
 export function CreateLobbyDialog({ open, onOpenChange }: CreateLobbyDialogProps) {
@@ -55,7 +55,7 @@ export function CreateLobbyDialog({ open, onOpenChange }: CreateLobbyDialogProps
   const [variant, setVariant] = useState('standard')
   const [minutes, setMinutes] = useState(5)
   const [increment, setIncrement] = useState(3)
-  const [side, setSide] = useState<Side>('random')
+  const [side, setSide] = useState<Color>(Color.Random)
   const [rated, setRated] = useState(true)
   const [isPending, setIsPending] = useState(false)
 
@@ -87,7 +87,12 @@ export function CreateLobbyDialog({ open, onOpenChange }: CreateLobbyDialogProps
         <form 
           action={async (formData) => {
             setIsPending(true);
-            await createGame(formData);
+            try{
+                await createGame(formData);    
+            }catch(error){
+                console.error(error);
+            }
+            setIsPending(false);
           }}
           className="space-y-6 pt-4"
         >
@@ -164,7 +169,7 @@ export function CreateLobbyDialog({ open, onOpenChange }: CreateLobbyDialogProps
           <div className="space-y-3">
             <p className="text-center text-muted-foreground text-sm">Side</p>
             <div className="grid grid-cols-3 gap-2">
-              {(['black', 'random', 'white'] as const).map((s) => (
+              {([Color.Black, Color.Random, Color.White] as const).map((s) => (
                 <button
                   type="button"
                   key={s}
@@ -180,7 +185,7 @@ export function CreateLobbyDialog({ open, onOpenChange }: CreateLobbyDialogProps
                     className="w-8 h-8"
                     fill="currentColor"
                   >
-                    {s === 'random' ? (
+                    {s === Color.Random ? (
                       <>
                         <g fill="none" fillRule="evenodd" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M22.5 11.63V6M20 8h5" strokeLinejoin="miter" />
@@ -190,16 +195,16 @@ export function CreateLobbyDialog({ open, onOpenChange }: CreateLobbyDialogProps
                         </g>
                       </>
                     ) : (
-                      <g fill={s === 'white' ? 'none' : 'currentColor'} fillRule="evenodd" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <g fill={s === Color.White ? 'none' : 'currentColor'} fillRule="evenodd" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M22.5 11.63V6M20 8h5" strokeLinejoin="miter" />
-                        <path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5" fill={s === 'white' ? '#fff' : 'currentColor'} strokeLinecap="butt" strokeLinejoin="miter" />
-                        <path d="M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10V37z" fill={s === 'white' ? '#fff' : 'currentColor'} />
+                        <path d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5" fill={s === Color.White ? '#fff' : 'currentColor'} strokeLinecap="butt" strokeLinejoin="miter" />
+                        <path d="M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10V37z" fill={s === Color.White ? '#fff' : 'currentColor'} />
                         <path d="M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0" />
                       </g>
                     )}
                   </svg>
                   <span className="text-sm font-medium capitalize">
-                    {s === 'random' ? 'Random side' : s}
+                    {s === Color.Random ? 'Random side' : s}
                   </span>
                 </button>
               ))}
