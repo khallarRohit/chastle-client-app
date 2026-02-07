@@ -2,44 +2,25 @@
 
 import React from "react";
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Chessboard } from "react-chessboard";
+import { 
+  Chessboard, 
+  SquareDataType, 
+  PieceDropHandlerArgs,
+  SquareHandlerArgs,
+  PieceHandlerArgs,
+  PieceDataType,
+  DraggingPieceDataType,
+} from "react-chessboard";
 import { ChessAdapter, createChessGame } from "@/lib/chess/chess-adapter";
 import { Move, PieceType, Square} from "@/lib/chess/chess-engine"
 
-// Types matching react-chessboard's handler argument types
-type PieceDataType = {
-  pieceType: string;
-};
-
-type DraggingPieceDataType = {
-  isSparePiece: boolean;
-  position: string;
-  pieceType: string;
-};
-
-type SquareHandlerArgs = {
-  piece: PieceDataType | null;
-  square: string;
-};
-
-type PieceHandlerArgs = {
-  isSparePiece: boolean;
-  piece: PieceDataType;
-  square: string | null;
-};
-
-type PieceDropHandlerArgs = {
-  piece: DraggingPieceDataType;
-  sourceSquare: string;
-  targetSquare: string | null;
-};
 
 interface ChessBoardProps {
   playerColor: "white" | "black";
   initialFen?: string;
   onMove?: (move: { from: string; to: string; san: string; promotion?: string }) => void;
   onGameOver?: (result: string) => void;
-  position?: string;
+  position: string;
 }
 
 interface PromotionState {
@@ -57,24 +38,28 @@ export function ChessBoard({
   onGameOver,
   position,
 }: ChessBoardProps) {
-  const [game, setGame] = useState<ChessAdapter>(() =>
-    createChessGame(initialFen)
-  );
+  const gameRef = useRef<ChessAdapter> (createChessGame(position));
+  // const [game, setGame] = useState<ChessAdapter>(() =>
+  //   createChessGame(initialFen)
+  // );
+  const [fen, setFen] = useState<string>(position);
+  // currently clicked square for move
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
 
-  // contain all legal moves when i click a square
+  // all the legal moves for clicked square
   const [optionSquares, setOptionSquares] = useState<Record<string, React.CSSProperties>>({}); 
+
+  // right clicket square
   const [rightClickedSquares, setRightClickedSquares] = useState<Record<string, React.CSSProperties>>({});
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   const [promotionState, setPromotionState] = useState<PromotionState | null>(null);
 
-  const gameRef = useRef(game);
   const onMoveRef = useRef(onMove);
   const onGameOverRef = useRef(onGameOver);
 
-  useEffect(() => {
-    gameRef.current = game;
-  }, [game]);
+  // useEffect(() => {
+  //   gameRef.current = game;
+  // }, [game]);
 
   useEffect(() => {
     onMoveRef.current = onMove;
@@ -86,14 +71,16 @@ export function ChessBoard({
 
   // Update game state when external position changes (from WebSocket)
   useEffect(() => {
-    if (position && position !== game.fen()) {
-      const newGame = createChessGame(position);
-      setGame(newGame);
+    if (position && position !== gameRef.current.fen()) {
+      gameRef.current.load(position);
+      setFen(position);
+      setOptionSquares({});
+      setMoveFrom(null);
     }
   }, [position]);
   
   const getMoveOptions = useCallback((square: string) => {
-    const moves = game.moves({ square, verbose: true });
+    const moves = gameRef.current.moves({ square, verbose: true });
 
     if (moves.length === 0) {
       setOptionSquares({});
@@ -117,7 +104,7 @@ export function ChessBoard({
 
     setOptionSquares(newSquares);
     return true;
-  }, [game]);
+  }, []);
 
   const makeMove = useCallback(
     (move: {
@@ -125,114 +112,64 @@ export function ChessBoard({
       to: Square,
       promotion?: PieceType,
     }): boolean => {
-      try {
-        // Get SAN and check for pawn promotion
+      const moveResult = gameRef.current.move({
+        from: move.from,
+        to: move.to,
+        promotion: move.promotion,
+      })
 
-        const moveResult = gameRef.current.move({
-          from: move.from,
-          to: move.to,
-          promotion: move.promotion,
-        })
-
-        if(moveResult === 'no_piece' || moveResult === 'no_move' || moveResult === 'no_turn'){
-          return false;
-        } 
-
-        if(moveResult === 'promotion_not_found'){
-            setPromotionState({
-              isPromoting: true,
-              from: move.from,
-              to: move.to,
-              sourceSquare,
-              targetSquare,
-            });
-            return false;
-        }
-
-        const moves = gameRef.current.moves({ square: move.from, verbose: true });
-        const matchingMove = moves.find(
-          (m: { from: string; to: string; san: string; promotion?: string }) =>
-            m.from === sourceSquare && m.to === targetSquare
-        );
-
-        // Check if this move requires promotion
-        if (matchingMove && matchingMove.promotion) {
-          if (!promotion) {
-            // Promotion is required but not provided - show promotion dialog
-
-          }
-          // User selected a promotion piece
-          const move = gameCopy.move({
-            from: sourceSquare,
-            to: targetSquare,
-            promotion: promotion,
-          });
-
-          if (move) {
-            setGame(gameCopy);
-            setLastMove({ from: sourceSquare, to: targetSquare });
-            setMoveFrom(null);
-            setOptionSquares({});
-            setPromotionState(null);
-
-            onMoveRef.current?.({
-              from: sourceSquare,
-              to: targetSquare,
-              san: move.san,
-              promotion,
-            });
-
-            // Check for game over
-            if (gameCopy.isGameOver()) {
-              if (gameCopy.isCheckmate()) {
-                onGameOverRef.current?.(
-                  gameCopy.turn() === "w" ? "Black wins" : "White wins"
-                );
-              } else if (gameCopy.isStalemate()) {
-                onGameOverRef.current?.("Draw by stalemate");
-              }
-            }
-
-            return true;
-          }
-        } else {
-          // Regular move without promotion
-          const move = gameCopy.move({
-            from: sourceSquare,
-            to: targetSquare,
-          });
-
-          if (move) {
-            setGame(gameCopy);
-            setLastMove({ from: sourceSquare, to: targetSquare });
-            setMoveFrom(null);
-            setOptionSquares({});
-
-            onMoveRef.current?.({
-              from: sourceSquare,
-              to: targetSquare,
-              san: move.san,
-            });
-
-            // Check for game over
-            if (gameCopy.isGameOver()) {
-              if (gameCopy.isCheckmate()) {
-                onGameOverRef.current?.(
-                  gameCopy.turn() === "w" ? "Black wins" : "White wins"
-                );
-              } else if (gameCopy.isStalemate()) {
-                onGameOverRef.current?.("Draw by stalemate");
-              }
-            }
-
-            return true;
-          }
-        }
-      } catch {
-        // Invalid move
+      if(moveResult === 'no_piece' 
+        || moveResult === 'no_move' 
+        || moveResult === 'no_turn'
+        || moveResult === 'wrong_castle'
+        || moveResult === 'wrong_promotion'){
+        return false;
+      } 
+    
+      if(moveResult === 'castle_not_found'){
+        return false;
       }
 
-      return false;
+      if(moveResult === 'promotion_not_found'){
+        setPromotionState({
+          isPromoting: true,
+          from: move.from,
+          to: move.to,
+          sourceSquare: move.from,
+          targetSquare: move.to,
+        });
+        return false;
+      }
+
+      setFen(gameRef.current.fen());
+      setLastMove({ from: move.from, to: move.to });
+      setMoveFrom(null);
+      setOptionSquares({});
+      setPromotionState(null);
+
+      onMoveRef.current?.({
+        from: move.from,
+        to: move.to,
+        san: gameRef.current.moveToSAN({
+          from: move.from,
+          to: move.to,
+          piece: gameRef.current.getPiece(move.from)!,
+          promotion: move.promotion,
+        }),
+        promotion: move.promotion,
+      });
+
+      if (gameRef.current.isGameOver()) {
+        if (gameRef.current.isCheckmate()) {
+          onGameOverRef.current?.(
+            gameRef.current.turn() === "w" ? "Black wins" : "White wins"
+          );
+        } else if (gameRef.current.isStalemate()) {
+          onGameOverRef.current?.("Draw by stalemate");
+        }
+      }
+
+      return true;
     },
     [playerColor]
   );
@@ -241,7 +178,24 @@ export function ChessBoard({
   const handlePromotion = useCallback(
     (piece: string) => {
       if (promotionState) {
-        makeMove(promotionState.sourceSquare, promotionState.targetSquare, piece);
+        makeMove({
+          from: promotionState.sourceSquare,
+          to:promotionState.targetSquare,
+          promotion: (() => {
+            switch(piece){
+              case "q":
+                return 'queen';
+              case "r":
+                return 'rook';
+              case "b":
+                return 'bishop';
+              case "n":
+                return 'knight'
+              default:
+                return 'queen'
+            }
+          })()
+        })
       }
     },
     [promotionState, makeMove]
@@ -249,9 +203,9 @@ export function ChessBoard({
 
   // Handler uses object destructuring as per react-chessboard's PieceDropHandlerArgs
   const onPieceDrop = useCallback(
-    ({ sourceSquare, targetSquare }: PieceDropHandlerArgs): boolean => {
+    ({piece, sourceSquare, targetSquare }: PieceDropHandlerArgs): boolean => {
       if (!targetSquare) return false;
-      const success = makeMove(sourceSquare, targetSquare);
+      const success = makeMove({from: sourceSquare, to: targetSquare});
       return success;
     },
     [makeMove]
@@ -264,7 +218,7 @@ export function ChessBoard({
 
       // If no piece is selected yet
       if (!moveFrom) {
-        const piece = game.get(square);
+        const piece = gameRef.current.get(square);
         if (
           piece &&
           ((piece.color === "w" && playerColor === "white") ||
@@ -277,11 +231,11 @@ export function ChessBoard({
       }
 
       // Try to make a move
-      const moveSuccessful = makeMove(moveFrom, square);
+      const moveSuccessful = makeMove({from: moveFrom, to: square});
 
       if (!moveSuccessful) {
         // Check if clicking on another one of player's pieces
-        const piece = game.get(square);
+        const piece = gameRef.current.get(square);
         if (
           piece &&
           ((piece.color === "w" && playerColor === "white") ||
@@ -295,7 +249,7 @@ export function ChessBoard({
         }
       }
     },
-    [game, moveFrom, playerColor, getMoveOptions, makeMove]
+    [moveFrom, playerColor, getMoveOptions, makeMove]
   );
 
   // Handler uses object destructuring as per react-chessboard's SquareHandlerArgs
@@ -314,7 +268,7 @@ export function ChessBoard({
   );
 
   // Handler uses object destructuring as per react-chessboard's PieceHandlerArgs
-  const onPieceClick = useCallback(
+  const onPieceDrag = useCallback(
     ({ piece, square }: PieceHandlerArgs) => {
       if (square) {
         onSquareClick({ piece: { pieceType: piece.pieceType }, square });
@@ -326,7 +280,7 @@ export function ChessBoard({
   // Handler uses object destructuring as per react-chessboard's PieceHandlerArgs
   const canDragPiece = useCallback(
     ({ piece }: PieceHandlerArgs): boolean => {
-      // Only allow dragging the current player's pieces
+      // Only allow dragging the current player's pieces and current player's turn
       // pieceType is like "wP" for white pawn, "bK" for black king
       const pieceColor = piece.pieceType[0] as "w" | "b";
       const isPlayerPiece =
@@ -335,12 +289,12 @@ export function ChessBoard({
       
       // Only allow dragging if it's the player's turn
       const isPlayerTurn =
-        (game.turn() === "w" && playerColor === "white") ||
-        (game.turn() === "b" && playerColor === "black");
+        (gameRef.current.turn() === "w" && playerColor === "white") ||
+        (gameRef.current.turn() === "b" && playerColor === "black");
       
       return isPlayerPiece && isPlayerTurn;
     },
-    [game, playerColor]
+    [playerColor]
   );
 
   // Build custom square styles including last move highlight
@@ -363,10 +317,11 @@ export function ChessBoard({
       <div className="w-full aspect-square max-w-[600px] mx-auto">
       <Chessboard
         options={{
-          position: game.fen(),
+          position: fen,
           boardOrientation: playerColor,
           showNotation: true,
           allowDragging: true,
+          allowDragOffBoard: true,
           allowDrawingArrows: true,
           animationDurationInMs: 200,
           darkSquareStyle: {
@@ -391,8 +346,9 @@ export function ChessBoard({
           },
           onPieceDrop,
           onSquareClick,
+          onPieceDrag,
           onSquareRightClick,
-          onPieceClick,
+          // onPieceClick,
           canDragPiece,
           arrowOptions: {
             color: "rgba(186, 202, 68, 0.8)",
@@ -441,3 +397,8 @@ export function ChessBoard({
     </>
   );
 }
+
+
+// onMouseOutSquare
+// onMouseOverSquare
+// onSquareClick <=> onPieceDrag

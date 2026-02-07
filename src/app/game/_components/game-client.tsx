@@ -55,29 +55,6 @@ export function GameClient({ gameId, playerColor, config }: GameClientProps) {
     reconnect: true,
   });
 
-//   export type MessageType =
-//     | 'AUTHENTICATE'
-//     | 'GAME_STATE'
-//     | 'MOVE'
-//     | 'MOVE_MADE'
-//     | 'PLAYER_JOINED'
-//     | 'PLAYER_LEFT'
-//     | 'CHAT_MESSAGE'
-//     | 'DRAW_OFFER'
-//     | 'DRAW_RESPONSE'
-//     | 'RESIGN'
-//     | 'GAME_OVER'
-//     | 'TIME_UPDATE'
-//     | 'ERROR'
-
-
-// export interface WebSocketMessage {
-//   type: MessageType
-//   payload: any
-//   timestamp?: number
-// }
-
-
   // Handle incoming WebSocket messages
   useEffect(() => {
     if (!lastMessage) return;
@@ -85,28 +62,32 @@ export function GameClient({ gameId, playerColor, config }: GameClientProps) {
     console.log("WebSocket message received:", lastMessage);
 
     switch (lastMessage.type) {
-      case "board_state":
+      case 'GAME_STATE':
         if (lastMessage.payload?.position) {
           setBoardFen(lastMessage.payload.position);
         }
+        if (lastMessage.payload?.gameStarted !== undefined) {
+          setGameStarted(lastMessage.payload.gameStarted);
+        }
         break;
+      case 'PLAYER_JOINED':
 
-      case "move":
-        if (lastMessage.payload?.move) {
+
+        break;
+      case 'MOVE_MADE':
+        if(lastMessage.payload?.move){
           const move = lastMessage.payload.move;
-          // Only process opponent's moves
-          if (
-            lastMessage.payload.playerColor &&
-            lastMessage.payload.playerColor !== playerColor
-          ) {
+          const moveColor = lastMessage.payload.playerColor;
+
+          if(moveColor && moveColor !== playerColor){
             setMoves((prev) => {
               const newMoves = [...prev];
-              if (move.color === "white") {
+              if(moveColor === "white") {
                 newMoves.push({
                   number: newMoves.length + 1,
                   white: move.san,
                 });
-              } else {
+              }else {
                 if (newMoves.length > 0) {
                   newMoves[newMoves.length - 1].black = move.san;
                 }
@@ -117,11 +98,24 @@ export function GameClient({ gameId, playerColor, config }: GameClientProps) {
           }
         }
         break;
-
-      case "game_over":
+      case 'CHAT_MESSAGE':
+        break;
+      case 'PLAYER_LEFT':
+        break;
+      case 'DRAW_OFFER':
+        break;
+      case 'DRAW_RESPONSE':
+        break;
+      case 'GAME_OVER':
         if (lastMessage.payload?.result) {
           handleGameOver(lastMessage.payload.result);
         }
+        break;
+      case 'RESIGN':
+        break;
+      case 'ERROR':
+        break;
+      default: 
         break;
     }
   }, [lastMessage]);

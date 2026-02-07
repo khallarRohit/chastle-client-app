@@ -11,6 +11,8 @@ export type MessageType =
     | 'RESIGN'
     | 'GAME_OVER'
     | 'TIME_UPDATE'
+    | 'PING'
+    | 'PONG'
     | 'ERROR'
 
 

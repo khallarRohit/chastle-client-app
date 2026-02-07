@@ -41,6 +41,11 @@ export class ChessAdapter {
     }
   }
 
+  getPiece(square: Square): PieceType | null {
+    const piece = this.engine.getPiece(square);
+    return piece ? piece.type : null;
+  }
+
   /**
    * Get current turn
    */
@@ -166,7 +171,7 @@ export class ChessAdapter {
 
   // ==================== HELPER METHODS ====================
 
-  private moveToSAN(move: EngineMove): string {
+  public moveToSAN(move: EngineMove): string {
     // Simplified SAN notation
     let san = ''
 
